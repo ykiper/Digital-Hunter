@@ -1,5 +1,8 @@
 from confluent_kafka import Consumer
 import json
+from logger import log_event
+from intel_processor import process_intel
+from attack_processor import process_attack
 
 consumer_config = {
     "bootstrap.servers": "localhost:9092",
@@ -12,10 +15,10 @@ class KafkaConsumer:
     def __init__(self):
         self.consumer = Consumer(consumer_config)
 
-    def consume(self, topic_name):
-        print("Consumer is running and subscribed to orders topic")
+    def consume_data(self, topic_name):
 
         self.consumer.subscribe([topic_name])
+        log_event("INFO", f"Consumer is running and subscribed to {topic_name} topic")
 
         try:
             while True:
@@ -23,11 +26,15 @@ class KafkaConsumer:
                 if msg is None:
                     continue
                 if msg.error():
-                    print("Error:", msg.error())
+                    log_event("ERROR", msg.error())
                     continue
 
                 value = msg.value().decode("utf-8")
-                order = json.loads(value)
-                print(f"Received order: {order['quantity']} x {order['item']} from {order['user']}")
+                event = json.loads(value)
+                if topic_name == "Intel":
+                    process_intel(event)
+                elif topic_name == "Attack":
+                    process_attack(event)
+
         except KeyboardInterrupt:
             print("\nStopping consumer")
